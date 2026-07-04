@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/blastmini/__init__.py
+src/blastmini/cli.py
+src/blastmini/core.py
+src/blastmini/io.py
+src/blastmini/stats.py
+src/blastmini.egg-info/PKG-INFO
+src/blastmini.egg-info/SOURCES.txt
+src/blastmini.egg-info/dependency_links.txt
+src/blastmini.egg-info/top_level.txt

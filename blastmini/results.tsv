@@ -1,0 +1,3 @@
+query_id	subject_id	score	identity	query_start	query_end	subject_start	subject_end	pvalue
+query_1	subject_1	8	100.00%	1	4	1	4	0.001
+query_1	subject_1	8	100.00%	1	4	13	16	0.001
