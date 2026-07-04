@@ -1,4 +1,6 @@
 from collections import defaultdict
+from .stats import calc_identity, calc_empirical_pvalue  # 新增这一行
+from collections import defaultdict
 
 def build_kmer_index(db_records, k=8):
     """构建 k-mer 哈希索引"""
@@ -81,16 +83,25 @@ def run_search(query_records, db_records, k=8, top_n=5):
             align_len = (r_q - l_q + 1)
             identity = total_matches / align_len if align_len > 0 else 0
 
+           # 计算真实 Identity 和 P-value
+            identity_val = calc_identity(total_matches, align_len)
+            
+            # 如果分数太低，p-value直接给1.0；分数高再进行严格的背景模拟
+            if total_score > 5:
+                p_val = calc_empirical_pvalue(total_score, q_seq, iterations=50)
+            else:
+                p_val = 1.0
+
             hits.append({
                 "query_id": q_id,
                 "subject_id": s_id,
                 "score": total_score,
-                "identity": f"{identity:.2%}", # 转换为百分比
-                "query_start": l_q + 1,        # 转换为1-based坐标
+                "identity": f"{identity_val:.2%}", 
+                "query_start": l_q + 1,        
                 "query_end": r_q + 1,
                 "subject_start": l_s + 1,
                 "subject_end": r_s + 1,
-                "pvalue": 0.001                # P-value 占位符，满足 TSV 列格式要求
+                "pvalue": f"{p_val:.4f}"   # 真正计算出的 p-value！
             })
 
         # 对当前 query 的结果按最高分排序，截取前 Top N
