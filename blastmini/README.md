@@ -79,15 +79,16 @@ done
 
 | query_id | subject_id | score | identity | query_start | query_end | subject_start | subject_end | pvalue |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| query_1 | sp|P0A7V0|RL10_ECOLI | 87 | 95.12% | 1 | 41 | 22 | 62 | 0.0196 |
-| query_2 | sp|P01308|INS_HUMAN | 62 | 100.00% | 1 | 31 | 80 | 110 | 0.0196 |
+| query_1 | sp-P0A7V0-RL10_ECOLI | 87 | 95.12% | 1 | 41 | 22 | 62 | 0.0196 |
+| query_2 | sp-P01308-INS_HUMAN | 62 | 100.00% | 1 | 31 | 80 | 110 | 0.0196 |
 
 ---
 
-## 开发者 (Author)
+## 开发者 (Contributors)
 
-* **李彦熹 (Li Yanxi)** - 独立完成项目底层工程架构搭建、比对算法逻辑编写与统计学评估模块实现。
+本项目由以下小组成员共同完成，严格遵循模块化分工：
 
-```
-
+* **李彦熹 (Li Yanxi)** - 负责工程与接口。搭建底层项目包结构、开发基于生成器的 FASTA IO 读取模块、封装 CLI 命令行接口、完成结果导出逻辑及 README 撰写，并搭建基础单元测试框架。
+* **杨茗淞 (Yang Mingsong)** - 负责核心算法。实现基于哈希的 k-mer 索引构建、种子搜索 (seed search)、双向无间隙延伸 (ungapped extension) 算法、动态 score 计算与 top hits 排序机制。
+* **高睿勤 (Gao Ruiqin)** - 负责实验评估与报告。构建并验证统计指标 (Identity 与经验 p-value)，准备基准测试数据，设计真实与随机序列的比对对照实验，并完成实验结果分析、数据可视化及最终报告撰写。
 ```
