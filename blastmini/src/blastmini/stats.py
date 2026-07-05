@@ -1,48 +1,75 @@
 import random
+from typing import Optional
 
-def calc_identity(matches, align_len):
-    """
-    计算序列一致性 (Identity) [cite: 28]
-    """
+
+def calc_identity(matches: int, align_len: int) -> float:
+    """Calculate sequence identity as matches / alignment length."""
     if align_len <= 0:
         return 0.0
     return matches / align_len
 
-def calc_empirical_pvalue(real_score, query_seq, iterations=50):
+
+def best_ungapped_score(
+    query_seq: str,
+    subject_seq: str,
+    match_score: int = 2,
+    mismatch_score: int = -1,
+) -> int:
+    """Return the best local ungapped alignment score over all diagonals."""
+    if not query_seq or not subject_seq:
+        return 0
+
+    best_score = 0
+    q_len = len(query_seq)
+    s_len = len(subject_seq)
+
+    for offset in range(-q_len + 1, s_len):
+        q_start = max(0, -offset)
+        s_start = max(0, offset)
+        diag_len = min(q_len - q_start, s_len - s_start)
+        current = 0
+
+        for delta in range(diag_len):
+            q_char = query_seq[q_start + delta]
+            s_char = subject_seq[s_start + delta]
+            current += match_score if q_char == s_char else mismatch_score
+            if current < 0:
+                current = 0
+            elif current > best_score:
+                best_score = current
+
+    return best_score
+
+
+def calc_empirical_pvalue(
+    real_score: int,
+    query_seq: str,
+    subject_seq: Optional[str] = None,
+    iterations: int = 50,
+    rng: Optional[random.Random] = None,
+) -> float:
     """
-    计算经验 p-value 
-    公式: p = (随机分数 >= 真实分数的次数 + 1) / (随机次数 + 1) 
+    Estimate an empirical p-value by shuffling the query and rescoring it.
+
+    The same subject sequence is used as the background target, and each random
+    score is the best local ungapped score across all diagonals.
     """
-    random_scores = []
-    seq_list = list(query_seq)
-    
-    # 生成随机背景 
+    if real_score <= 0 or iterations <= 0:
+        return 1.0
+
+    target_seq = subject_seq if subject_seq is not None else query_seq
+    if not query_seq or not target_seq:
+        return 1.0
+
+    random_source = rng or random
+    query_chars = list(query_seq)
+    count = 0
+
     for _ in range(iterations):
-        # 1. 打乱序列
-        random.shuffle(seq_list)
-        
-        # 2. 模拟局部比对的随机得分 (简化版快速打分机制)
-        # 匹配+2，错配-1 [cite: 55]
-        # 为了不让服务器跑几万年，这里用统计模拟代替了完整的哈希搜索
-        mock_score = 0
-        max_mock = 0
-        for i in range(len(seq_list)):
-            # 假设随机背景下，碰到相同碱基的概率约为 25% (0.25)
-            if random.random() < 0.25:
-                mock_score += 2
-            else:
-                mock_score -= 1
-                
-            if mock_score < 0:
-                mock_score = 0
-                
-            if mock_score > max_mock:
-                max_mock = mock_score
-                
-        random_scores.append(max_mock)
-        
-    # 3. 统计并计算 p-value 
-    count = sum(1 for s in random_scores if s >= real_score)
-    p_value = (count + 1) / (iterations + 1)
-    
-    return p_value
+        shuffled = query_chars[:]
+        random_source.shuffle(shuffled)
+        random_score = best_ungapped_score("".join(shuffled), target_seq)
+        if random_score >= real_score:
+            count += 1
+
+    return (count + 1) / (iterations + 1)

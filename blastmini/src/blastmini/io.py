@@ -1,29 +1,62 @@
-import os
+from pathlib import Path
+from typing import Iterable, Iterator, Tuple
 
-def read_fasta(file_path):
+
+ALLOWED_SEQUENCE_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ*")
+
+
+def clean_sequence(sequence: Iterable[str]) -> str:
+    """Return an uppercase sequence with whitespace, gaps, and digits removed."""
+    cleaned = []
+    for char in "".join(sequence).upper():
+        if char in ALLOWED_SEQUENCE_CHARS:
+            cleaned.append(char)
+    return "".join(cleaned)
+
+
+def read_fasta(file_path: str) -> Iterator[Tuple[str, str]]:
     """
-    读取 FASTA 文件并返回生成器 (Generator)。
-    使用生成器可以避免将 300MB 的文件一次性全部塞入内存。
-    产出: tuple(seq_id, sequence)
+    Stream records from a FASTA file.
+
+    Yields:
+        (seq_id, sequence), where seq_id is the first token after ">" and
+        sequence has been uppercased and cleaned.
     """
-    if not os.path.exists(file_path):
+    path = Path(file_path)
+    if not path.exists():
         raise FileNotFoundError(f"Error: 找不到文件 {file_path}")
 
-    with open(file_path, 'r') as f:
+    with path.open("r", encoding="utf-8") as handle:
         seq_id = None
         seq_lines = []
-        
-        for line in f:
-            line = line.strip()
-            if not line:
+
+        for line_no, raw_line in enumerate(handle, start=1):
+            line = raw_line.strip()
+            if not line or line.startswith(";"):
                 continue
+
             if line.startswith(">"):
                 if seq_id is not None:
-                    yield seq_id, "".join(seq_lines)
-                seq_id = line[1:].split()[0] 
+                    sequence = clean_sequence(seq_lines)
+                    if not sequence:
+                        raise ValueError(f"FASTA record '{seq_id}' has no sequence")
+                    yield seq_id, sequence
+
+                header = line[1:].strip()
+                if not header:
+                    raise ValueError(f"Empty FASTA header at line {line_no}")
+
+                seq_id = header.split()[0]
                 seq_lines = []
-            else:
-                seq_lines.append(line.upper())
-        
+                continue
+
+            if seq_id is None:
+                raise ValueError(f"Sequence data found before FASTA header at line {line_no}")
+
+            seq_lines.append(line)
+
         if seq_id is not None:
-            yield seq_id, "".join(seq_lines)
+            sequence = clean_sequence(seq_lines)
+            if not sequence:
+                raise ValueError(f"FASTA record '{seq_id}' has no sequence")
+            yield seq_id, sequence
