@@ -6,7 +6,7 @@
 
 ## 核心特性 (Key Features)
 
-* **高效索引构建**：使用 $k$-mer 字典对大规模 Subject 数据库进行 $O(1)$ 复杂度的哈希表构建。
+* **高效种子检索**：使用 $k$-mer 字典进行 $O(1)$ 复杂度的种子查找，并对候选命中执行局部延伸。
 * **内存流式读取**：底层基于 Python 生成器（Generator）处理 FASTA 文件，支持在计算节点上顺畅解析百兆级（如 UniProt/RefSeq）数据库，有效防止内存溢出（OOM）。
 * **双向无间隙延伸 (Ungapped Extension)**：实现精确的种子命中后，执行动态局部打分（Match +2, Mismatch -1），并在分数跌破阈值时自动截断（X-drop 机制）。
 * **统计学显著性评估**：内置蒙特卡洛序列打乱机制（Shuffle），动态模拟随机背景分布，并输出严谨的经验 P-value (Empirical P-value)。
@@ -18,25 +18,56 @@
 
 ### 1. 获取代码
 ```bash
-git clone [https://github.com/lyx128060/blastmini.git](https://github.com/lyx128060/blastmini.git)
+git clone https://github.com/lyx128060/blastmini.git
 cd blastmini
-
 ```
 
-### 2. 运行序列搜索
+### 2. 配置运行环境
+
+本项目没有第三方运行依赖。未安装包时，可以直接把 `src` 加入 `PYTHONPATH`：
+
+```bash
+export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+```
+
+如果本机有 `pip`，也可以使用可编辑安装：
+
+```bash
+python3 -m pip install -e .
+```
+
+### 3. 运行序列搜索
 
 工具包提供了标准的命令行调用方式。输入包含目标数据库文件（FASTA）与查询序列文件（FASTA）。
 
 ```bash
-python -m blastmini.cli search <database.fasta> <query.fasta> -k 3 --top 5 -o results.tsv
-
+python3 -m blastmini.cli search <database.fasta> <query.fasta> -k 3 --top 5 -o output/results.tsv
 ```
+
+例如，使用项目自带的 UniProt 数据库搜索胰高血糖素测试序列：
+
+```bash
+export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+
+python3 -m blastmini.cli search \
+  data/uniprot_sprot.fasta \
+  data/测试序列/seq_1_glucagon.fasta \
+  -k 3 \
+  --top 5 \
+  --seed 1 \
+  -o output/seq_1_glucagon_results.tsv
+```
+
+运行完成后，结果文件会保存在 `output/` 目录中。
 
 **核心参数说明：**
 
 * `-k`: K-mer 长度（推荐：核酸序列设为 4-6，蛋白质序列设为 3-4）。
 * `--top`: 每个 Query 期望输出的最高分匹配记录数。
 * `-o`: 输出结果的 TSV 文件路径。
+* `--pvalue-iterations`: 经验 P-value 的 Query shuffle 次数；设为 `0` 可关闭统计模拟以便快速调试。
+* `--seed`: 固定随机种子，用于复现实验中的 P-value。
+* `--x-drop`: 无间隙延伸的 X-drop 截断阈值。
 
 ---
 
@@ -55,9 +86,21 @@ for query_file in /path/to/query_dir/*.fasta; do
     filename=$(basename -- "$query_file")
     prefix="${filename%.*}"
     
-    python -m blastmini.cli search /path/to/db.fasta "$query_file" -k 3 --top 5 -o "/path/to/output/${prefix}_results.tsv"
+    python3 -m blastmini.cli search /path/to/db.fasta "$query_file" -k 3 --top 5 -o "output/${prefix}_results.tsv"
 done
 
+```
+
+---
+
+## 开发与测试 (Development)
+
+项目测试使用 Python 标准库 `unittest`，无需额外安装测试框架：
+
+```bash
+export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+python3 -m unittest discover -s tests
+python3 -m compileall src tests
 ```
 
 ---
@@ -91,4 +134,3 @@ done
 * **李彦熹 (Li Yanxi)** - 负责工程与接口。搭建底层项目包结构、开发基于生成器的 FASTA IO 读取模块、封装 CLI 命令行接口、完成结果导出逻辑及 README 撰写，并搭建基础单元测试框架。
 * **杨茗淞 (Yang Mingsong)** - 负责核心算法。实现基于哈希的 k-mer 索引构建、种子搜索 (seed search)、双向无间隙延伸 (ungapped extension) 算法、动态 score 计算与 top hits 排序机制。
 * **高睿勤 (Gao Ruiqin)** - 负责实验评估与报告。构建并验证统计指标 (Identity 与经验 p-value)，准备基准测试数据，设计真实与随机序列的比对对照实验，并完成实验结果分析、数据可视化及最终报告撰写。
-```
